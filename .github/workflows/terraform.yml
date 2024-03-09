@@ -96,6 +96,6 @@ jobs:
     - name: Terraform Plan - 1
       run: terraform plan -input=false -var-file=terra.tfvars -no-color
 
-    - name: Terraform Apply - 1
-    #  if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
-      run: terraform apply -auto-approve -var-file=terra.tfvars
+    # - name: Terraform Apply - 1
+    # #  if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+    #   run: terraform apply -auto-approve -var-file=terra.tfvars
