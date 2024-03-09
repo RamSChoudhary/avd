@@ -1,0 +1,101 @@
+name: 'Terraform'
+
+on:
+#  push:
+#    branches: [ "main" ]
+#  pull_request:
+
+#permissions:
+#  contents: read
+
+ workflow_dispatch:
+
+permissions:
+ id-token: write
+ contents: read
+ actions: read
+ security-events: write
+ pull-requests: write
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v3
+
+
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform init -no-color
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.ARM_CLIENT_ID }}
+        tenant-id: ${{ secrets.ARM_TENANT_ID }}
+        subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+    # Checks that all Terraform configuration files adhere to a canonical format
+    #- name: Terraform Format
+    #  run: terraform fmt -check
+
+
+    # - name: Add Firewall rule
+    #   id: add_firewallrule
+    #   shell: bash
+    #   run: |
+    #         agentIP=$(curl -s https://api.ipify.org/)
+    #         az keyvault network-rule add --resource-group test-rg --name test-kv1441 --ip-address $agentIP
+    #         sleep 50s
+    #         echo $agentIP
+    #         terraform plan -input=false -var-file=terra.tfvars -no-color -target='null_resource.kv-keys-add' -out='ip.tfplan'
+    #         terraform apply ip.tfplan
+
+
+    # #Generates an execution plan for Terraform
+    - name: Terraform Plan
+      run: terraform plan -input=false -var-file=terra.tfvars -no-color -out=ip.plan -target='null_resource.kv-keys-add'
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@3.1.2
+      with:
+        name: ip-plan
+        path: ip.plan
+
+    - name: Download
+      uses: actions/download-artifact@3
+      with:
+        name: ip.plan
+    # - name: Remove Firewall rule
+    #   id: remove_firewallrule
+    #   shell: bash
+    #   run: |
+    #         agentIP=$(curl -s https://api.ipify.org/)
+    #         az keyvault network-rule remove --resource-group test-rg --name test-kv1441 --ip-address $agentIP
+    #         sleep 50s
+    #         echo $agentIP
+
+      # On push to "main", build or change infrastructure according to Terraform configuration files
+      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+    - name: Terraform Apply
+    #  if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+      run: terraform apply -auto-approve ip.plan
+
+    - name: Terraform Plan - 1
+      run: terraform plan -input=false -var-file=terra.tfvars -no-color
+
+    - name: Terraform Apply - 1
+    #  if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+      run: terraform apply -auto-approve -var-file=terra.tfvars
